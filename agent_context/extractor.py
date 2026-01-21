@@ -6,6 +6,7 @@ from typing import Dict, List, Optional
 from .utils import (
     find_directories,
     find_files_by_pattern,
+    get_directory_tree,
     get_files_in_directories,
     get_relative_path,
     read_file_safe,
