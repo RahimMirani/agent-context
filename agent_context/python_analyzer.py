@@ -123,41 +123,53 @@ def analyze_python_file(file_path: Path, repo_path: Path) -> Optional[Dict]:
     # Extract classes and their methods
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef):
-            class_info = {
-                'name': node.name,
-                'docstring': extract_docstring(node),
-                'methods': [],
-                'bases': [ast.unparse(base) for base in node.bases],
-            }
-            
-            # Extract methods
-            for item in node.body:
-                if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    method_info = {
-                        'name': item.name,
-                        'signature': format_function_signature(item),
-                        'docstring': extract_docstring(item),
-                    }
-                    class_info['methods'].append(method_info)
-            
-            analysis['classes'].append(class_info)
+            try:
+                class_info = {
+                    'name': node.name,
+                    'docstring': extract_docstring(node),
+                    'methods': [],
+                    'bases': [ast.unparse(base) for base in node.bases] if node.bases else [],
+                }
+                
+                # Extract methods
+                for item in node.body:
+                    if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        try:
+                            method_info = {
+                                'name': item.name,
+                                'signature': format_function_signature(item),
+                                'docstring': extract_docstring(item),
+                            }
+                            class_info['methods'].append(method_info)
+                        except Exception:
+                            # Skip methods that can't be parsed
+                            continue
+                
+                analysis['classes'].append(class_info)
+            except Exception:
+                # Skip classes that can't be parsed
+                continue
     
     # Extract top-level functions
     for node in tree.body:
-        if isinstance(node, ast.FunctionDef):
-            func_info = {
-                'name': node.name,
-                'signature': format_function_signature(node),
-                'docstring': extract_docstring(node),
-            }
-            analysis['functions'].append(func_info)
-        elif isinstance(node, ast.AsyncFunctionDef):
-            func_info = {
-                'name': node.name,
-                'signature': format_function_signature(node),
-                'docstring': extract_docstring(node),
-            }
-            analysis['functions'].append(func_info)
+        try:
+            if isinstance(node, ast.FunctionDef):
+                func_info = {
+                    'name': node.name,
+                    'signature': format_function_signature(node),
+                    'docstring': extract_docstring(node),
+                }
+                analysis['functions'].append(func_info)
+            elif isinstance(node, ast.AsyncFunctionDef):
+                func_info = {
+                    'name': node.name,
+                    'signature': format_function_signature(node),
+                    'docstring': extract_docstring(node),
+                }
+                analysis['functions'].append(func_info)
+        except Exception:
+            # Skip functions that can't be parsed
+            continue
     
     # Remove duplicates from imports
     analysis['imports'] = list(dict.fromkeys(analysis['imports']))
