@@ -44,8 +44,8 @@ def print_warning(message: str) -> None:
 @click.option(
     '-o', '--output',
     type=click.Path(),
-    default='agent-context.md',
-    help='Output file path (default: agent-context.md)'
+    default=None,
+    help='Output file path (if not provided, will prompt for filename)'
 )
 @click.option(
     '-v', '--verbose',
@@ -83,13 +83,25 @@ def main(github_url: str, output: str, verbose: bool, token: str) -> None:
         if not token:
             token = os.getenv('GITHUB_TOKEN')
         
-        # Validate output path
-        output_path = Path(output)
-        if output_path.exists() and not click.confirm(
-            f"File {output_path} already exists. Overwrite?", default=False
-        ):
-            print_info("Operation cancelled.")
-            sys.exit(0)
+        # Handle output path - always prompt for filename suffix
+        if output:
+            output_path = Path(output)
+        else:
+            # Always ask for suffix to add after "agent-context"
+            suffix_input = click.prompt(
+                "Enter text to add after 'agent-context' for the filename (e.g., '-v2', '-repo-name')"
+            )
+            output_path = Path(f"agent-context-{suffix_input}.md")
+        
+        # If file exists, ask for different suffix
+        if output_path.exists():
+            print_warning(f"File {output_path} already exists.")
+            suffix_input = click.prompt(
+                "Enter different text to add after 'agent-context' (e.g., '-v2', '-repo-name')"
+            )
+            output_path = Path(f"agent-context-{suffix_input}.md")
+        
+        print_info(f"Output file: {output_path}")
         
         if verbose:
             print_info(f"Starting extraction for: {github_url}")
