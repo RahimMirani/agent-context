@@ -13,40 +13,39 @@ from .utils import (
 )
 
 
-# Common config file patterns
+# Essential config file patterns for AI context (dependencies and setup only)
 CONFIG_FILE_PATTERNS = [
+    # Python
     'requirements.txt',
-    'package.json',
     'pyproject.toml',
     'setup.py',
+    'setup.cfg',
     'Pipfile',
     'Pipfile.lock',
+    'poetry.lock',
+    'MANIFEST.in',
+    # Node.js
+    'package.json',
+    'package-lock.json',
+    'yarn.lock',
+    # Environment
     'environment.yml',
-    'Dockerfile',
-    '.dockerignore',
     '.env.example',
     '.env.template',
+    # Docker
+    'Dockerfile',
     'docker-compose.yml',
     'docker-compose.yaml',
-    'Makefile',
-    'CMakeLists.txt',
+    # Other languages (for dependency info)
     'Cargo.toml',
     'go.mod',
     'go.sum',
     'Gemfile',
     'composer.json',
+    # Build configs
+    'Makefile',
+    'CMakeLists.txt',
     'tsconfig.json',
-    'webpack.config.js',
-    'jest.config.js',
-    '.prettierrc',
-    '.eslintrc',
-    'package-lock.json',
-    'yarn.lock',
-    'poetry.lock',
-    'setup.cfg',
-    'MANIFEST.in',
-    '.gitignore',
-    '.gitattributes',
 ]
 
 # README file patterns (in priority order)
@@ -59,7 +58,7 @@ README_PATTERNS = [
     'readme.txt',
 ]
 
-# Example directory names
+# Example directory names (excluding test/tutorial directories for AI context)
 EXAMPLE_DIR_NAMES = [
     'examples',
     'example',
@@ -67,10 +66,6 @@ EXAMPLE_DIR_NAMES = [
     'demos',
     'samples',
     'sample',
-    'test',
-    'tests',
-    'tutorial',
-    'tutorials',
 ]
 
 

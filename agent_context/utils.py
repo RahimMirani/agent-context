@@ -45,10 +45,17 @@ def get_directory_tree(root_path: Path, max_depth: Optional[int] = None) -> List
     Returns:
         List of strings representing the directory tree
     """
+    # Exclude test directories and other non-essential dirs
+    exclude_dirs = {'test', 'tests', '__tests__', '.pytest_cache', '__pycache__', '.git', '.venv', 'venv', 'env', 'node_modules', 'tutorial', 'tutorials'}
+    
     tree_lines = []
     
     def _build_tree(path: Path, prefix: str = "", is_last: bool = True, depth: int = 0):
         if max_depth is not None and depth > max_depth:
+            return
+        
+        # Skip excluded directories
+        if path.is_dir() and path.name in exclude_dirs:
             return
             
         # Add current directory/file
@@ -62,6 +69,8 @@ def get_directory_tree(root_path: Path, max_depth: Optional[int] = None) -> List
         # Process children if it's a directory
         if path.is_dir():
             children = sorted(path.iterdir(), key=lambda p: (p.is_file(), p.name))
+            # Filter out excluded directories
+            children = [c for c in children if not (c.is_dir() and c.name in exclude_dirs)]
             for i, child in enumerate(children):
                 is_last_child = i == len(children) - 1
                 _build_tree(child, new_prefix, is_last_child, depth + 1)
@@ -87,7 +96,7 @@ def find_files_by_pattern(
         List of matching file paths
     """
     if exclude_dirs is None:
-        exclude_dirs = ['__pycache__', '.git', '.venv', 'venv', 'env', 'node_modules', '.pytest_cache']
+        exclude_dirs = ['__pycache__', '.git', '.venv', 'venv', 'env', 'node_modules', '.pytest_cache', 'test', 'tests', '__tests__', '.pytest_cache']
     
     matching_files = []
     
@@ -123,7 +132,7 @@ def find_directories(
         List of matching directory paths
     """
     if exclude_dirs is None:
-        exclude_dirs = ['__pycache__', '.git', '.venv', 'venv', 'env', 'node_modules']
+        exclude_dirs = ['__pycache__', '.git', '.venv', 'venv', 'env', 'node_modules', 'test', 'tests', '__tests__']
     
     matching_dirs = []
     
