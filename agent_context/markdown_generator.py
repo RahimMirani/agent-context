@@ -143,14 +143,52 @@ def format_python_analysis(analyses: List[Dict]) -> str:
             lines.append("```")
             lines.append("")
         
-        # Imports
+        # Type Aliases
+        if analysis.get('type_aliases'):
+            lines.append("**Type Aliases:**")
+            for alias in analysis['type_aliases']:
+                type_str = f": {alias['type']}" if alias.get('type') else ""
+                value_str = f" = {alias['value']}" if alias.get('value') else ""
+                lines.append(f"- `{alias['name']}{type_str}{value_str}`")
+            lines.append("")
+        
+        # Constants
+        if analysis.get('constants'):
+            lines.append("**Constants:**")
+            for const in analysis['constants']:
+                lines.append(f"- `{const['name']} = {const['value']}`")
+            lines.append("")
+        
+        # Enums
+        if analysis.get('enums'):
+            lines.append("**Enums:**")
+            for enum in analysis['enums']:
+                lines.append(f"\n#### `enum {enum['name']}`")
+                if enum.get('docstring'):
+                    lines.append(f"*{enum['docstring'].split(chr(10))[0]}*")
+                if enum.get('members'):
+                    for member in enum['members']:
+                        lines.append(f"- `{member['name']} = {member['value']}`")
+            lines.append("")
+        
+        # Exceptions
+        if analysis.get('exceptions'):
+            lines.append("**Custom Exceptions:**")
+            for exc in analysis['exceptions']:
+                bases_str = f"({', '.join(exc['bases'])})" if exc.get('bases') else ""
+                lines.append(f"- `class {exc['name']}{bases_str}`")
+                if exc.get('docstring'):
+                    lines.append(f"  - {exc['docstring'].split(chr(10))[0]}")
+            lines.append("")
+        
+        # Imports (grouped)
         if analysis.get('imports'):
             lines.append("**Imports:**")
             for imp in analysis['imports']:
                 lines.append(f"- `{imp}`")
             lines.append("")
         
-        # Classes
+        # Classes (public API first)
         if analysis.get('classes'):
             lines.append("**Classes:**")
             for cls in analysis['classes']:
@@ -162,24 +200,76 @@ def format_python_analysis(analyses: List[Dict]) -> str:
                     lines.append(cls['docstring'])
                     lines.append("```")
                 
+                # Class attributes
+                if cls.get('attributes'):
+                    public_attrs = [a for a in cls['attributes'] if a.get('is_public', True)]
+                    if public_attrs:
+                        lines.append("**Attributes:**")
+                        for attr in public_attrs:
+                            type_str = f": {attr['type']}" if attr.get('type') else ""
+                            value_str = f" = {attr['value']}" if attr.get('value') else ""
+                            lines.append(f"- `{attr['name']}{type_str}{value_str}`")
+                        lines.append("")
+                
+                # Methods (public first)
                 if cls.get('methods'):
-                    lines.append("**Methods:**")
-                    for method in cls['methods']:
-                        lines.append(f"- `{method['signature']}`")
-                        if method.get('docstring'):
-                            lines.append(f"  - {method['docstring'].split(chr(10))[0]}")
-                    lines.append("")
+                    public_methods = [m for m in cls['methods'] if m.get('is_public', True)]
+                    private_methods = [m for m in cls['methods'] if not m.get('is_public', True)]
+                    
+                    if public_methods:
+                        lines.append("**Public Methods:**")
+                        for method in public_methods:
+                            decorator_str = f" @{', @'.join(method.get('decorators', []))}" if method.get('decorators') else ""
+                            prop_marker = " *(property)*" if method.get('is_property') else ""
+                            lines.append(f"- `{method['signature']}{decorator_str}{prop_marker}`")
+                            if method.get('docstring'):
+                                doc_preview = method['docstring'].split('\n')[0][:150]
+                                lines.append(f"  - {doc_preview}")
+                        lines.append("")
+                    
+                    if private_methods:
+                        lines.append("**Private Methods:**")
+                        for method in private_methods[:5]:  # Limit private methods
+                            lines.append(f"- `{method['signature']}`")
+                        if len(private_methods) > 5:
+                            lines.append(f"  - ... and {len(private_methods) - 5} more private methods")
+                        lines.append("")
             lines.append("")
         
-        # Functions
+        # Functions (public API first)
         if analysis.get('functions'):
-            lines.append("**Functions:**")
-            for func in analysis['functions']:
-                lines.append(f"\n#### `{func['signature']}`")
-                if func.get('docstring'):
-                    lines.append("```")
-                    lines.append(func['docstring'])
-                    lines.append("```")
+            public_funcs = [f for f in analysis['functions'] if f.get('is_public', True)]
+            private_funcs = [f for f in analysis['functions'] if not f.get('is_public', True)]
+            
+            if public_funcs:
+                lines.append("**Public Functions:**")
+                for func in public_funcs:
+                    decorator_str = f" @{', @'.join(func.get('decorators', []))}" if func.get('decorators') else ""
+                    lines.append(f"\n#### `{func['signature']}{decorator_str}`")
+                    if func.get('docstring'):
+                        lines.append("```")
+                        # Limit very long docstrings
+                        docstring = func['docstring']
+                        if len(docstring) > 1000:
+                            docstring = docstring[:1000] + "\n... (truncated)"
+                        lines.append(docstring)
+                        lines.append("```")
+                lines.append("")
+            
+            if private_funcs:
+                lines.append("**Private Functions:**")
+                for func in private_funcs[:3]:  # Limit private functions shown
+                    lines.append(f"- `{func['signature']}`")
+                if len(private_funcs) > 3:
+                    lines.append(f"  - ... and {len(private_funcs) - 3} more private functions")
+                lines.append("")
+        
+        # Main block
+        if analysis.get('main_block'):
+            lines.append("**Main Entry Point:**")
+            lines.append("```python")
+            lines.append(analysis['main_block'])
+            lines.append("```")
             lines.append("")
         
         lines.append("---\n")
@@ -222,9 +312,93 @@ def format_example_files(example_files: List[Dict]) -> str:
             lang = ext if ext else 'text'
             
             lines.append(f"```{lang}")
-            lines.append(example_file['content'])
+            # Limit example file size for readability
+            content = example_file['content']
+            if len(content) > 5000:
+                content = content[:5000] + "\n\n... (file truncated for brevity)"
+            lines.append(content)
             lines.append("```")
             lines.append("")
+    
+    return "\n".join(lines)
+
+
+def generate_api_summary(python_analyses: List[Dict]) -> str:
+    """
+    Generate a quick API summary for AI context.
+    
+    Args:
+        python_analyses: List of Python file analysis dictionaries
+        
+    Returns:
+        Formatted API summary section
+    """
+    if not python_analyses:
+        return ""
+    
+    lines = ["## API Summary\n"]
+    lines.append("*Quick reference of public API for AI context*\n")
+    
+    all_public_classes = []
+    all_public_functions = []
+    all_exceptions = []
+    all_enums = []
+    
+    for analysis in python_analyses:
+        # Collect public classes
+        for cls in analysis.get('classes', []):
+            public_methods = [m for m in cls.get('methods', []) if m.get('is_public', True)]
+            if public_methods or cls.get('is_public', True):
+                all_public_classes.append({
+                    'name': cls['name'],
+                    'path': analysis['path'],
+                    'bases': cls.get('bases', []),
+                    'method_count': len(public_methods),
+                })
+        
+        # Collect public functions
+        for func in analysis.get('functions', []):
+            if func.get('is_public', True):
+                all_public_functions.append({
+                    'name': func['name'],
+                    'path': analysis['path'],
+                    'signature': func['signature'],
+                })
+        
+        # Collect exceptions
+        all_exceptions.extend(analysis.get('exceptions', []))
+        
+        # Collect enums
+        all_enums.extend(analysis.get('enums', []))
+    
+    if all_public_classes:
+        lines.append("### Public Classes\n")
+        for cls in all_public_classes[:20]:  # Limit to top 20
+            bases_str = f"({', '.join(cls['bases'])})" if cls.get('bases') else ""
+            lines.append(f"- `{cls['name']}{bases_str}` - {cls['method_count']} public methods (*{cls['path']}*)")
+        if len(all_public_classes) > 20:
+            lines.append(f"- ... and {len(all_public_classes) - 20} more classes")
+        lines.append("")
+    
+    if all_public_functions:
+        lines.append("### Public Functions\n")
+        for func in all_public_functions[:30]:  # Limit to top 30
+            lines.append(f"- `{func['name']}` (*{func['path']}*)")
+        if len(all_public_functions) > 30:
+            lines.append(f"- ... and {len(all_public_functions) - 30} more functions")
+        lines.append("")
+    
+    if all_exceptions:
+        lines.append("### Custom Exceptions\n")
+        for exc in all_exceptions[:10]:
+            lines.append(f"- `{exc['name']}`")
+        lines.append("")
+    
+    if all_enums:
+        lines.append("### Enums\n")
+        for enum in all_enums[:10]:
+            lines.append(f"- `{enum['name']}`")
+        lines.append("")
     
     return "\n".join(lines)
 
@@ -271,6 +445,7 @@ def generate_markdown(
     if verbose:
         all_sections = [
             "Repository Information",
+            "API Summary",
             "README",
             "Directory Structure",
             "Configuration Files",
@@ -278,6 +453,12 @@ def generate_markdown(
             "Example Files",
         ]
         markdown_parts.append(generate_table_of_contents(all_sections))
+    
+    # API Summary (for quick AI reference)
+    api_summary = generate_api_summary(python_analyses)
+    if api_summary:
+        sections.append("API Summary")
+        markdown_parts.append(api_summary)
     
     # README
     sections.append("README")
